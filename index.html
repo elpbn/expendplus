@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Expend+ Smart Expense & Scan Nota</title>
+  <link rel="manifest" href="manifest.json" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 16px); }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-24">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-30 bg-slate-900/90 backdrop-blur border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold">
+        E+
+      </div>
+      <div>
+        <h1 class="font-bold text-base leading-tight">Expend+</h1>
+        <p class="text-[11px] text-slate-400">Smart Expense & Scan Nota AI</p>
+      </div>
+    </div>
+    <button onclick="openApiKeyModal()" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300">
+      ⚙️ API Key
+    </button>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-md mx-auto p-4 space-y-4">
+
+    <!-- Summary Card -->
+    <div class="bg-gradient-to-br from-emerald-600 to-teal-800 rounded-2xl p-5 shadow-lg">
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="text-xs uppercase tracking-wider text-emerald-100/80">Total Pengeluaran Bulan Ini</p>
+          <h2 id="totalSpent" class="text-2xl font-extrabold mt-1">Rp 0</h2>
+        </div>
+        <button onclick="exportCSV()" class="bg-white/15 hover:bg-white/25 text-xs px-2.5 py-1.5 rounded-lg font-medium backdrop-blur">
+          📥 CSV
+        </button>
+      </div>
+      <div class="mt-4">
+        <div class="flex justify-between text-xs text-emerald-100 mb-1">
+          <span id="budgetLabel">Anggaran: Rp 5.000.000</span>
+          <span id="budgetPercent">0%</span>
+        </div>
+        <div class="w-full h-2 bg-black/30 rounded-full overflow-hidden">
+          <div id="budgetBar" class="h-full bg-white rounded-full transition-all" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div id="tab-dashboard" class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-semibold text-sm text-slate-300">Riwayat Transaksi</h3>
+        <button onclick="switchTab('scan')" class="text-xs text-emerald-400 font-medium">+ Scan Struk Baru</button>
+      </div>
+      <div id="expenseList" class="space-y-2.5"></div>
+    </div>
+
+    <!-- Tab: Scan Nota -->
+    <div id="tab-scan" class="hidden space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <h3 class="font-bold text-sm">📸 Scan Nota / Struk Belanja</h3>
+        <p class="text-xs text-slate-400">Ambil foto nota belanja atau pilih preset contoh struk untuk mengekstrak daftar belanja otomatis.</p>
+        
+        <label class="block w-full cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white text-center py-3 rounded-xl font-semibold text-sm transition">
+          Kamera / Pilih Foto Nota
+          <input type="file" id="receiptInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event)" />
+        </label>
+
+        <div class="pt-2">
+          <p class="text-[11px] text-slate-400 mb-2">Atau coba simulasi struk instan:</p>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="loadPreset('indomaret')" class="bg-slate-800 hover:bg-slate-700 p-2 rounded-lg text-xs border border-slate-700">🛒 Indomaret</button>
+            <button onclick="loadPreset('kopi')" class="bg-slate-800 hover:bg-slate-700 p-2 rounded-lg text-xs border border-slate-700">☕ Kopi</button>
+            <button onclick="loadPreset('spbu')" class="bg-slate-800 hover:bg-slate-700 p-2 rounded-lg text-xs border border-slate-700">⛽ SPBU</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scan Result Editor -->
+      <div id="scanResultBox" class="hidden bg-slate-900 border border-emerald-500/40 rounded-2xl p-4 space-y-3">
+        <h4 class="font-bold text-sm text-emerald-400">Hasil Ekstraksi Nota</h4>
+        <div class="space-y-2">
+          <input id="formMerchant" type="text" placeholder="Nama Toko / Merchant" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
+          <input id="formAmount" type="number" placeholder="Total Nominal (Rp)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
+          <select id="formCategory" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+            <option value="Makanan & Minuman">🍔 Makanan & Minuman</option>
+            <option value="Belanja Harian">🛒 Belanja Harian</option>
+            <option value="Transportasi & BBM">⛽ Transportasi & BBM</option>
+            <option value="Tagihan & Utilitas">⚡ Tagihan & Utilitas</option>
+            <option value="Lainnya">📦 Lainnya</option>
+          </select>
+          <textarea id="formItems" rows="2" placeholder="Rincian item..." class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs"></textarea>
+          <button onclick="saveScannedExpense()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-xl text-sm">
+            Simpan ke Catatan Pengeluaran
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Manual Input -->
+    <div id="tab-add" class="hidden space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <h3 class="font-bold text-sm">➕ Tambah Pengeluaran Manual</h3>
+        <input id="manualMerchant" type="text" placeholder="Keterangan / Nama Toko" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
+        <input id="manualAmount" type="number" placeholder="Nominal (Rp)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
+        <select id="manualCategory" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+          <option value="Makanan & Minuman">🍔 Makanan & Minuman</option>
+          <option value="Belanja Harian">🛒 Belanja Harian</option>
+          <option value="Transportasi & BBM">⛽ Transportasi & BBM</option>
+          <option value="Tagihan & Utilitas">⚡ Tagihan & Utilitas</option>
+          <option value="Lainnya">📦 Lainnya</option>
+        </select>
+        <button onclick="saveManualExpense()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-xl text-sm">
+          Simpan Transaksi
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- API Key Modal -->
+  <div id="apiModal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 max-w-sm w-full space-y-3">
+      <h3 class="font-bold text-sm">Pengaturan Gemini API Key</h3>
+      <p class="text-xs text-slate-400">Masukkan Gemini API Key Anda agar fitur scan foto nota menggunakan AI Vision berjalan langsung dari HP.</p>
+      <input id="apiKeyInput" type="password" placeholder="AIzaSy..." class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs" />
+      <div class="flex justify-end gap-2">
+        <button onclick="closeApiKeyModal()" class="px-3 py-1.5 text-xs bg-slate-800 rounded-lg">Batal</button>
+        <button onclick="saveApiKey()" class="px-3 py-1.5 text-xs bg-emerald-500 text-slate-950 font-bold rounded-lg">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <nav class="fixed bottom-0 inset-x-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 safe-bottom z-40">
+    <div class="max-w-md mx-auto grid grid-cols-3 py-2">
+      <button onclick="switchTab('dashboard')" class="flex flex-col items-center text-xs text-emerald-400 py-1">
+        <span>📊</span>
+        <span class="mt-0.5 font-medium">Beranda</span>
+      </button>
+      <button onclick="switchTab('scan')" class="flex flex-col items-center text-xs text-slate-300 py-1">
+        <span>📸</span>
+        <span class="mt-0.5 font-medium">Scan Nota</span>
+      </button>
+      <button onclick="switchTab('add')" class="flex flex-col items-center text-xs text-slate-300 py-1">
+        <span>➕</span>
+        <span class="mt-0.5 font-medium">Tambah</span>
+      </button>
+    </div>
+  </nav>
+
+  <script>
+    const BUDGET = 5000000;
+    let expenses = JSON.parse(localStorage.getItem('expend_plus_data') || 'null') || [
+      { id: 1, merchant: 'Indomaret Point', amount: 64500, category: 'Belanja Harian', date: '2026-11-09', items: 'Susu UHT, Roti Tawar, Air Mineral' },
+      { id: 2, merchant: 'SPBU Pertamina', amount: 150000, category: 'Transportasi & BBM', date: '2026-11-08', items: 'Pertamax 11.5L' },
+      { id: 3, merchant: 'Kopi Kenangan', amount: 38000, category: 'Makanan & Minuman', date: '2026-11-07', items: 'Kopi Kenangan Mantan Large' }
+    ];
+
+    function formatRp(num) {
+      return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+    }
+
+    function renderExpenses() {
+      localStorage.setItem('expend_plus_data', JSON.stringify(expenses));
+      const total = expenses.reduce((a, b) => a + Number(b.amount), 0);
+      document.getElementById('totalSpent').innerText = formatRp(total);
+      const pct = Math.min(100, Math.round((total / BUDGET) * 100));
+      document.getElementById('budgetPercent').innerText = pct + '%';
+      document.getElementById('budgetBar').style.width = pct + '%';
+
+      const list = document.getElementById('expenseList');
+      list.innerHTML = expenses.map(e => `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex justify-between items-center">
+          <div>
+            <p class="font-semibold text-sm">${e.merchant}</p>
+            <p class="text-[11px] text-slate-400">${e.category} • ${e.date}</p>
+            ${e.items ? `<p class="text-[11px] text-slate-500 mt-0.5">${e.items}</p>` : ''}
+          </div>
+          <div class="text-right">
+            <p class="font-bold text-sm text-emerald-400">${formatRp(e.amount)}</p>
+            <button onclick="deleteExpense(${e.id})" class="text-[10px] text-rose-400 hover:underline mt-1">Hapus</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function deleteExpense(id) {
+      expenses = expenses.filter(e => e.id !== id);
+      renderExpenses();
+    }
+
+    function switchTab(tab) {
+      ['dashboard', 'scan', 'add'].forEach(t => {
+        document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+      });
+    }
+
+    function loadPreset(type) {
+      const presets = {
+        indomaret: { merchant: 'Indomaret Cabang Utama', amount: 89500, category: 'Belanja Harian', items: 'Indomie Goreng x5, Minyak Goreng 1L, Kopi Bubuk' },
+        kopi: { merchant: 'Fore Coffee', amount: 42000, category: 'Makanan & Minuman', items: 'Butterscotch Sea Salt Latte' },
+        spbu: { merchant: 'SPBU Pertamina 44.574', amount: 200000, category: 'Transportasi & BBM', items: 'Pertamax 15.2 Liter' }
+      };
+      const p = presets[type];
+      document.getElementById('scanResultBox').classList.remove('hidden');
+      document.getElementById('formMerchant').value = p.merchant;
+      document.getElementById('formAmount').value = p.amount;
+      document.getElementById('formCategory').value = p.category;
+      document.getElementById('formItems').value = p.items;
+    }
+
+    async function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      document.getElementById('scanResultBox').classList.remove('hidden');
+      const apiKey = localStorage.getItem('gemini_api_key');
+
+      if (!apiKey) {
+        document.getElementById('formMerchant').value = 'Nota Terdeteksi (' + file.name.slice(0, 12) + ')';
+        document.getElementById('formAmount').value = 75000;
+        document.getElementById('formItems').value = 'Isi Gemini API Key di pojok kanan atas untuk ekstraksi OCR AI otomatis.';
+        return;
+      }
+
+      document.getElementById('formMerchant').value = 'Memindai nota dengan AI...';
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64Data = reader.result.split(',')[1];
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: 'Ekstrak nota ini ke JSON dengan key: merchant (string), amount (number), category (Makanan & Minuman / Belanja Harian / Transportasi & BBM / Tagihan & Utilitas / Lainnya), items (string ringkasan item).' },
+                  { inlineData: { mimeType: file.type, data: base64Data } }
+                ]
+              }],
+              generationConfig: { responseMimeType: 'application/json' }
+            })
+          });
+          const data = await res.json();
+          const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
+          document.getElementById('formMerchant').value = parsed.merchant || 'Toko';
+          document.getElementById('formAmount').value = parsed.amount || 0;
+          document.getElementById('formCategory').value = parsed.category || 'Belanja Harian';
+          document.getElementById('formItems').value = parsed.items || '';
+        } catch (err) {
+          alert('Gagal memindai nota via API: ' + err.message);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function saveScannedExpense() {
+      const merchant = document.getElementById('formMerchant').value || 'Transaksi Baru';
+      const amount = Number(document.getElementById('formAmount').value || 0);
+      const category = document.getElementById('formCategory').value;
+      const items = document.getElementById('formItems').value;
+      expenses.unshift({
+        id: Date.now(),
+        merchant,
+        amount,
+        category,
+        items,
+        date: new Date().toISOString().slice(0, 10)
+      });
+      document.getElementById('scanResultBox').classList.add('hidden');
+      renderExpenses();
+      switchTab('dashboard');
+    }
+
+    function saveManualExpense() {
+      const merchant = document.getElementById('manualMerchant').value || 'Pengeluaran Manual';
+      const amount = Number(document.getElementById('manualAmount').value || 0);
+      const category = document.getElementById('manualCategory').value;
+      expenses.unshift({
+        id: Date.now(),
+        merchant,
+        amount,
+        category,
+        items: '',
+        date: new Date().toISOString().slice(0, 10)
+      });
+      document.getElementById('manualMerchant').value = '';
+      document.getElementById('manualAmount').value = '';
+      renderExpenses();
+      switchTab('dashboard');
+    }
+
+    function exportCSV() {
+      const rows = [['Tanggal', 'Merchant', 'Kategori', 'Nominal', 'Rincian'], ...expenses.map(e => [e.date, e.merchant, e.category, e.amount, e.items || ''])];
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ExpendPlus_Laporan.csv';
+      a.click();
+    }
+
+    function openApiKeyModal() {
+      document.getElementById('apiKeyInput').value = localStorage.getItem('gemini_api_key') || '';
+      document.getElementById('apiModal').classList.remove('hidden');
+    }
+    function closeApiKeyModal() {
+      document.getElementById('apiModal').classList.add('hidden');
+    }
+    function saveApiKey() {
+      localStorage.setItem('gemini_api_key', document.getElementById('apiKeyInput').value.trim());
+      closeApiKeyModal();
+    }
+
+    renderExpenses();
+  </script>
+</body>
+</html>

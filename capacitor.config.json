@@ -1,0 +1,6 @@
+{
+  "appId": "com.subdial.expendplus",
+  "appName": "Expend+",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
