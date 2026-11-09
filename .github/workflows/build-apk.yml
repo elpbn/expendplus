@@ -1,43 +1,25 @@
-name: Build Android APK
-
-on:
-  push:
-    branches: [ main, master ]
-  workflow_dispatch:
-
+name: BuildAPK
+on: [push, workflow_dispatch]
 jobs:
-  build-apk:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Setup Java JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: 17
-
-      - name: Install Capacitor & Generate Android Project
-        run: |
+      - run: |
           npm install
           npx cap add android
           npx cap sync
-
-      - name: Build Debug APK
-        run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
-
-      - name: Upload Compiled APK
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: ExpendPlus-Debug-APK
-          path: android/app/build/outputs/apk/debug/app-de
-          bug.apk
+          name: ExpendPlus-APK
+          path: android/app/build/outputs/apk/debug/*.apk
