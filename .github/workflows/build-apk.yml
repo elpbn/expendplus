@@ -13,6 +13,10 @@ jobs:
           distribution: temurin
           java-version: 17
       - run: |
+          mkdir -p www
+          cp index.html www/ 2>/dev/null || true
+          cp ExpendPlus_Mobile_Installer.html www/index.html 2>/dev/null || true
+          cp manifest.json www/ 2>/dev/null || true
           npm install
           npx cap add android
           npx cap sync
